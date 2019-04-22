@@ -20,11 +20,12 @@ def index():
 @app.route('/marina', methods=['GET'])
 def marina_get():
     if request.method == 'GET':
-        query = client.query(kind=constants.marinas)
-        results = list(query.fetch())
-        for e in results:
-            e["id"] = e.key.id
-        return json.dumps(results)
+        boats = client.query(kind=constants.boats)
+        slips = client.query(kind=constants.slips)
+        boats_list = list(boats.fetch())
+        slips_list = list(slips.fetch())
+        marina = boats_list + slips_list
+        return json.dumps(marina)
     else:
         return 'Only GET method is allowed with this URL'
 
@@ -32,27 +33,28 @@ def marina_get():
 #Retrieving all boat information and Creating new boats
 @app.route('/boats', methods=['POST','GET'])
 def boats_get_post():
-    if request.method == 'POST':
+   if request.method == 'POST':
+            #Variable "content" is values passed to API to create a boat
             content = request.get_json()
-            #Query boats of the same kind
+            #Grab all the names in datastore and compare for uniqueness
             query = client.query(kind=constants.boats)
             results = list(query.fetch())
-            return results
-    #         new_boat = datastore.entity.Entity(key=client.key(constants.marinas))
-    #         new_boat.update({"name": content["name"], "type": content["type"],
-    #           "length": content["length"]})
-    #         client.put(new_boat)
-    #         return str(new_boat.key.id)
-    # elif request.method == 'GET':
-    #     query = client.query(kind=constants.marinas)
-    #     results = list(query.fetch())
-    #     for e in results:
-    #         e["id"] = e.key.id
-    #     return json.dumps(results)
-    # else:
-    #     return 'Method not recogonized'
-
-
+            results_into_list = json.dumps(results)
+            #Check if submitted name is unique 
+            if str(content["name"]) in results_into_list :
+                return "Need to have unique name"
+            else:
+                new_boat = datastore.entity.Entity(key=client.key(constants.boats))
+                new_boat.update({"name": content["name"], "type": content["type"],
+                  "length": content["length"]})
+                client.put(new_boat)
+            return json.dumps(results)
+   elif request.method == 'GET' :
+     query = client.query(kind=constants.boats)
+     results = list(query.fetch())
+     return json.dumps(results)
+   else:
+     return 'Method not recogonized'
 
 #Retrieving all slip information and Creating new slips
 @app.route('/slips', methods=['POST','GET'])
