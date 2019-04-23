@@ -1,5 +1,6 @@
 from google.cloud import datastore
-import datetime
+from datetime import datetime
+from datetime import time
 from flask import request
 from flask import Flask, render_template
 import json
@@ -58,22 +59,38 @@ def boats_get_post():
 
 #Retrieving all slip information and Creating new slips
 @app.route('/slips', methods=['POST','GET'])
-def marinas_get_post():
+def mboats_get_post():
     if request.method == 'POST':
+            #Variable "content" is values passed to API to create a boat
             content = request.get_json()
-            new_lodging = datastore.entity.Entity(key=client.key(constants.lodgings))
-            new_lodging.update({"name": content["name"], "description": content["description"],
-              "price": content["price"]})
-            client.put(new_lodging)
-            return str(new_lodging.key.id)
+            #Grab all the number of slips in datastore and compare for uniqueness
+            query = client.query(kind=constants.slips)
+            results = list(query.fetch())
+
+            print results[0]
+            print type(results)
+            print len(results)
+            results_into_list = json.dumps(results)
+            #print type(results_into_list)
+            #Check if submitted name is unique 
+            if str(content["number"]) in results_into_list :
+                return "Need to have unique number"
+            else:
+                new_slip = datastore.Entity(key=client.key(constants.slips))
+                new_slip.update({
+                    "number": content["number"],
+                    "arrival_date": content["arrival_date"],
+                    "current_boat": False,                
+                })
+                client.put(new_slip)
+                return results_into_list
     elif request.method == 'GET':
-        query = client.query(kind=constants.lodgings)
-        results = list(query.fetch())
-        for e in results:
-            e["id"] = e.key.id
-        return json.dumps(results)
+      query = client.query(kind=constants.slips)
+      results = list(query.fetch())
+      return json.dumps(results, indent=4, sort_keys=True, default=str)
     else:
-        return 'Method not recogonized'
+      return 'Method not recogonized'
+
 
 
 # @app.route('/lodgings/<id>', methods=['PUT','DELETE'])
