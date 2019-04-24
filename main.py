@@ -53,6 +53,8 @@ def boats_get_post():
    elif request.method == 'GET' :
      query = client.query(kind=constants.boats)
      results = list(query.fetch())
+     for e in results:
+        e["id"] = e.key.id
      return json.dumps(results)
    else:
      return 'Method not recogonized'
@@ -65,15 +67,13 @@ def mboats_get_post():
             content = request.get_json()
             #Grab all the number of slips in datastore and compare for uniqueness
             query = client.query(kind=constants.slips)
+            query.add_filter('number', '=', content["number"])
             results = list(query.fetch())
-
-            print results[0]
-            print type(results)
-            print len(results)
-            results_into_list = json.dumps(results)
-            #print type(results_into_list)
+            # print results[0].id
+            # print results
+            # print len(results)
             #Check if submitted name is unique 
-            if str(content["number"]) in results_into_list :
+            if len(results) >= 1:
                 return "Need to have unique number"
             else:
                 new_slip = datastore.Entity(key=client.key(constants.slips))
@@ -83,33 +83,88 @@ def mboats_get_post():
                     "current_boat": False,                
                 })
                 client.put(new_slip)
-                return results_into_list
+                return "slip created"
     elif request.method == 'GET':
       query = client.query(kind=constants.slips)
       results = list(query.fetch())
-      return json.dumps(results, indent=4, sort_keys=True, default=str)
+      for e in results:
+        e["id"] = e.key.id
+      return json.dumps(results)
     else:
       return 'Method not recogonized'
 
 
+@app.route('/boats/<id>', methods=['PUT','DELETE', 'GET'])
+def boats_get_put_delete(id):
+    if request.method == 'PUT':
+        content = request.get_json()
+        boat_key = client.key(constants.boats, int(id))
+        boat = client.get(key=boat_key)
+        #Still need to check that name is unique
+        query = client.query(kind=constants.boats)
+        query.add_filter('name', '=', content["name"])
+        results = list(query.fetch())
+        if len(results) >= 1:
+            return "Need to have unique number"
+        else:
+            boat.update({
+                "name": content["name"], 
+                "type": content["type"],
+                "length": content["length"]
+            })
+            client.put(boat)
+            return ('',200)
+    elif request.method == 'GET':
 
-# @app.route('/lodgings/<id>', methods=['PUT','DELETE'])
-# def lodgings_put_delete(id):
-#     if request.method == 'PUT':
-#         content = request.get_json()
-#         lodging_key = client.key(constants.lodgings, int(id))
-#         lodging = client.get(key=lodging_key)
-#         lodging.update({"name": content["name"], "description": content["description"],
-#           "price": content["price"]})
-#         client.put(lodging)
-#         return ('',200)
-#     elif request.method == 'DELETE':
-#         key = client.key(constants.lodgings, int(id))
-#         client.delete(key)
-#         return ('',200)
-#     else:
-#         return 'Method not recogonized'
+        # key = client.key(constants.boats, int(id))
+        # entity = client.get(key)
+        # print entity["name"]
+        query = client.query(kind=constants.boats)
+        first_key = client.key(constants.boats, int(id))
+        query.key_filter(first_key, '=')
+        results = list(query.fetch())
+        print results 
+        for e in results:
+            e["url"] = "https://week-3-marina.appspot.com/" + str(id)
+        return json.dumps(results)
 
+
+    elif request.method == 'DELETE':
+        #Deleting a boat should empty the slip the ship was in
+        #Query the slips for the boat KEY/ID then replace value with false
+        key = client.key(constants.boats, int(id))
+        client.delete(key)
+        return ('',200)
+    else:
+        return 'Method not recogonized'
+
+@app.route('/slips/<id>', methods=['PUT','DELETE'])
+def slips_put_delete(id):
+    if request.method == 'PUT':
+        content = request.get_json()
+        slip_key = client.key(constants.slips, int(id))
+        slip = client.get(key=slip_key)
+        #Still need to check that number of slip is unique
+        query = client.query(kind=constants.slips)
+        query.add_filter('number', '=', content["number"])
+        results = list(query.fetch())
+
+        if len(results) >= 1:
+            return "Need to have unique number"
+        else:
+            slip.update({
+                "number": content["number"], 
+                "current_boat": content["current_boat"],
+                "arrival_date": content["arrival_date"]
+            })
+            client.put(slip)
+            return ('',200)
+    elif request.method == 'DELETE':
+        key = client.key(constants.slips, int(id))
+        client.delete(key)
+        return ('',200)
+    else:
+        return 'Method not recogonized'
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
