@@ -49,7 +49,7 @@ def boats_get_post():
                 new_boat.update({"name": content["name"], "type": content["type"],
                   "length": content["length"]})
                 client.put(new_boat)
-            return json.dumps(results)
+            return ('', 200)
    elif request.method == 'GET' :
      query = client.query(kind=constants.boats)
      results = list(query.fetch())
@@ -61,7 +61,7 @@ def boats_get_post():
 
 #Retrieving all slip information and Creating new slips
 @app.route('/slips', methods=['POST','GET'])
-def mboats_get_post():
+def slips_get_post():
     if request.method == 'POST':
             #Variable "content" is values passed to API to create a boat
             content = request.get_json()
@@ -115,30 +115,39 @@ def boats_get_put_delete(id):
             client.put(boat)
             return ('',200)
     elif request.method == 'GET':
-
-        # key = client.key(constants.boats, int(id))
-        # entity = client.get(key)
-        # print entity["name"]
         query = client.query(kind=constants.boats)
         first_key = client.key(constants.boats, int(id))
+        print first_key
         query.key_filter(first_key, '=')
         results = list(query.fetch())
-        print results 
         for e in results:
-            e["url"] = "https://week-3-marina.appspot.com/" + str(id)
+            e["url"] = "https://week-3-marina.appspot.com/boats/" + str(id)
         return json.dumps(results)
-
-
     elif request.method == 'DELETE':
         #Deleting a boat should empty the slip the ship was in
         #Query the slips for the boat KEY/ID then replace value with false
+        query = client.query(kind=constants.slips)
+        query.add_filter('current_boat', '=', int(id))
+        results = list(query.fetch())
+
+        if len(results) >= 1:
+            #Returned a slip that contains the id of the boat that is trying to be deleted
+            #Delete the current boat ID and replace with false
+            for e in results:
+                slip_key = e.key.id
+            slip_to_change = client.key(constants.slips, int(slip_key))
+            slip = client.get(key =slip_to_change)
+            slip.update({
+                "current_boat": False, 
+            }) 
+            client.put(slip)
         key = client.key(constants.boats, int(id))
         client.delete(key)
         return ('',200)
     else:
         return 'Method not recogonized'
 
-@app.route('/slips/<id>', methods=['PUT','DELETE'])
+@app.route('/slips/<id>', methods=['PUT','DELETE', 'GET'])
 def slips_put_delete(id):
     if request.method == 'PUT':
         content = request.get_json()
@@ -148,7 +157,6 @@ def slips_put_delete(id):
         query = client.query(kind=constants.slips)
         query.add_filter('number', '=', content["number"])
         results = list(query.fetch())
-
         if len(results) >= 1:
             return "Need to have unique number"
         else:
@@ -163,8 +171,57 @@ def slips_put_delete(id):
         key = client.key(constants.slips, int(id))
         client.delete(key)
         return ('',200)
+    elif request.method == 'GET':
+        #If slip is occupied with a boat have to show live URL link of boat
+        #Query to get all slips entities from datastore
+        query = client.query(kind=constants.slips)
+        first_key = client.key(constants.slips, int(id))
+        entity = datastore.Entity(key=first_key)
+        blah = client.get(first_key)
+        # print blah
+        result = {}
+        for item in blah:
+          result[item] = blah[item]
+        print result['current_boat']
+    
+        
+        query.key_filter(first_key, '=')
+    
+
+
+        results = list(query.fetch())
+        
+
+        # print results
+        # for e in results:
+            # e["url"] = "https://week-3-marina.appspot.com/slips/" + str(id)
+            # e["url_boat"] = "https://week-3-marina.appspot.com/boats/" + str(boat_id)
+
+
+        return json.dumps(results)
+
+
+
+
+
+
     else:
         return 'Method not recogonized'
+
+#A boat should be able to arrive and be assigned a slip number specified in the request
+#No automatically assigning boats to slips
+#If the slip is occupied the server should return an Error 403 Forbiden message
+@app.route('/slip/<slip_id>/boat/<boat_id>', methods=['POST'])
+def boat_post_slip(slip_id, boat_id):
+    if request.method == 'POST':
+        print int(slip_id)
+        print int(boat_id)
+        return "blah"
+    else:
+        return 'Method not recogonized'
+
+
+
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
