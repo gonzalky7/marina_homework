@@ -173,40 +173,33 @@ def slips_put_delete(id):
         return ('',200)
     elif request.method == 'GET':
         #If slip is occupied with a boat have to show live URL link of boat
+
         #Query to get all slips entities from datastore
-        query = client.query(kind=constants.slips)
-        first_key = client.key(constants.slips, int(id))
-        entity = datastore.Entity(key=first_key)
-        blah = client.get(first_key)
-        # print blah
-        result = {}
-        for item in blah:
-          result[item] = blah[item]
-        print result['current_boat']
-    
+         query = client.query(kind=constants.slips)
+         query.key_filter(first_key, '=')
+         results = list(query.fetch())
+
+         #Only way I could find to get specific property values from query
+         #Need to get boat ID
+         first_key = client.key(constants.slips, int(id))
+         entity = datastore.Entity(key=first_key)
+         entity_keys = client.get(first_key)
         
-        query.key_filter(first_key, '=')
+         result = {}
+         for item in entity_keys:
+            result[item] = entity_keys[item]
+            current_boat_id = result['current_boat']
+         if current_boat_id == False:
+            # print "No boat assigned to slip"
+            for e in results:
+               e["url_slip"] = "https://week-3-marina.appspot.com/slips/" + str(id)
+            return json.dumps(results)
+         else:
+            for e in results:
+               e["url_slip"] = "https://week-3-marina.appspot.com/slips/" + str(id)
+               e["url_of_occupied_boat"] = "https://week-3-marina.appspot.com/boats/" + str(current_boat_id)
+               return json.dumps(results)
     
-
-
-        results = list(query.fetch())
-        
-
-        # print results
-        # for e in results:
-            # e["url"] = "https://week-3-marina.appspot.com/slips/" + str(id)
-            # e["url_boat"] = "https://week-3-marina.appspot.com/boats/" + str(boat_id)
-
-
-        return json.dumps(results)
-
-
-
-
-
-
-    else:
-        return 'Method not recogonized'
 
 #A boat should be able to arrive and be assigned a slip number specified in the request
 #No automatically assigning boats to slips
@@ -216,7 +209,9 @@ def boat_post_slip(slip_id, boat_id):
     if request.method == 'POST':
         print int(slip_id)
         print int(boat_id)
-        return "blah"
+        
+        #Need to query slip with id passed
+
     else:
         return 'Method not recogonized'
 
